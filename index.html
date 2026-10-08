@@ -540,7 +540,7 @@ const STEP = (() => { let k = 7; while(gcd(k, WORDS.length) !== 1) k++; return k
 let en = 0, zh = 0;
 const bgItems = Array.from({length:132}, (_,i) => ({label:
   i % 6 === 5 ? WORDS_ZH[zh++ % WORDS_ZH.length]        // 22 Chinese
-  : i % 4 === 0 ? "we are"                              // 33 we are
+  : i % 10 === 0 ? "we are"                             // 14 we are
   : WORDS[(en++ * STEP) % WORDS.length]}));             // 77 English  →  Chinese = 20% of English
 const onHero = () => current === "work" && scrollY < innerHeight*.6 && !document.body.classList.contains("menu-open");
 const bgS = Sphere($("#bgSphere"), bgItems, {cyMob:.42,
@@ -584,7 +584,7 @@ if(!reduce) setInterval(() => {
   const S = bgS;
   for(let k=0;k<2;k++){
     const el = S.fillers[rnd(S.fillers.length)];
-    if(+el.style.opacity > .2) morph(el, Math.random() < .25 ? "we are" : pickWord());
+    if(+el.style.opacity > .2) morph(el, Math.random() < .08 ? "we are" : pickWord());
   }
 }, 200);
 

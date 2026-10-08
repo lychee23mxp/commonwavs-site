@@ -69,7 +69,8 @@ nav.top .burger{display:none}
 .view.on{display:block}
 
 /* hero */
-.hero{height:100svh;min-height:520px;display:flex;flex-direction:column;align-items:center;padding-top:calc(var(--g) + 58px);pointer-events:none;position:relative}
+.hero{height:100svh;min-height:520px;display:flex;flex-direction:column;align-items:center;padding-top:calc(var(--g) + 58px);pointer-events:auto;cursor:grab;position:relative}
+.hero:active{cursor:grabbing}
 .logo{display:block;width:min(500px,82vw);height:auto}
 /* tagline scales with the logo (logo width x .019), never below 9px */
 .tagline{margin-top:max(12px, calc(min(500px,82vw) * .032));font-size:max(9px, calc(min(500px,82vw) * .019));letter-spacing:.38em;padding-left:.38em;color:rgba(11,11,11,.62);text-transform:uppercase;text-align:center}
@@ -335,8 +336,9 @@ const $ = s => document.querySelector(s);
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const pad = n => String(n).padStart(2,"0");
 const rnd = n => (Math.random()*n)|0;
-const mouse = {x:.5, y:.5};
-addEventListener("pointermove", e => { mouse.x = e.clientX/innerWidth; mouse.y = e.clientY/innerHeight; }, {passive:true});
+const mouse = {x:.5, y:.5, active:false};
+document.addEventListener("mouseleave", () => mouse.active = false);
+addEventListener("pointermove", e => { mouse.x = e.clientX/innerWidth; mouse.y = e.clientY/innerHeight; mouse.active = e.pointerType === "mouse"; }, {passive:true});
 
 /* placeholder tones for media until real Instagram files are in */
 const TONES = [
@@ -464,13 +466,26 @@ function Sphere(host, items, opt = {}){
     });
     addEventListener("pointerup", () => S.drag = false);
   }
+  if(opt.dragAnywhere){
+    addEventListener("pointerdown", e => {
+      if(e.pointerType !== "mouse" || e.button !== 0 || !opt.dragAnywhere(e)) return;
+      S.drag = true; S.lx = e.clientX; S.ly = e.clientY; e.preventDefault();
+    });
+    addEventListener("pointermove", e => {
+      if(!S.drag) return;
+      S.vy = (e.clientX - S.lx)*.003; S.vx = -(e.clientY - S.ly)*.003; S.lx = e.clientX; S.ly = e.clientY;
+    });
+    addEventListener("pointerup", () => S.drag = false);
+  }
   S.render = () => {
     const W = host.clientWidth, H = host.clientHeight; if(!W) return;
+    const steer = opt.steer && opt.steer();
     if(!S.drag){
-      const tvy = BASE + (mouse.x - .5)*.0014, tvx = (mouse.y - .5)*-.0006;
-      S.vy += (tvy - S.vy)*.025; S.vx += (tvx - S.vx)*.025;
-      S.ax += (-.16 - S.ax)*.004;
+      const tvy = BASE + (mouse.x - .5)*(steer ? .018 : .0014), tvx = (mouse.y - .5)*(steer ? -.011 : -.0006);
+      S.vy += (tvy - S.vy)*(steer ? .05 : .025); S.vx += (tvx - S.vx)*(steer ? .05 : .025);
+      if(!steer) S.ax += (-.16 - S.ax)*.004;
     }
+    const mx = mouse.x*innerWidth, my = mouse.y*innerHeight;
     if(!reduce){ S.ay += S.vy; S.ax += S.vx; }
     const mob = W < 760, rx = W*(mob ? .5 : .43), ry = Math.min(H*.34, rx*.6), cy = mob && opt.cyMob ? phoneCY(H, ry) : H*(opt.cy || .62);
     host.style.fontSize = (mob ? 10 : 13.5) + "px";
@@ -481,9 +496,11 @@ function Sphere(host, items, opt = {}){
       const y2 = y*ca - z1*sa, z2 = y*sa + z1*ca;
       const p = 3.4/(3.4 - z2), d = (z2 + 1)/2, ay = Math.abs(y2);
       const vf = ay > .68 ? Math.max(0, 1 - (ay - .68)/.32) : 1;
-      const el = els[i], s = el.style;
-      s.transform = `translate3d(${(W/2 + x1*rx*p).toFixed(1)}px,${(cy + y2*ry*p).toFixed(1)}px,0) translate(-50%,-50%) scale(${((.74 + .4*d)*el._k).toFixed(3)})`;
-      s.opacity = ((.1 + .9*d*d) * vf).toFixed(3);
+      const el = els[i], s = el.style, px = W/2 + x1*rx*p, py = cy + y2*ry*p;
+      let lift = 0;
+      if(steer && d > .4){ const dx = px - mx, dy = py - my; lift = Math.exp(-(dx*dx + dy*dy)/(2*110*110)); }
+      s.transform = `translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,0) translate(-50%,-50%) scale(${((.74 + .4*d)*el._k*(1 + .45*lift)).toFixed(3)})`;
+      s.opacity = Math.max((.1 + .9*d*d) * vf, lift).toFixed(3);
       s.zIndex = (d*100)|0;
       if(el.classList.contains("a")) s.pointerEvents = d > .45 ? "auto" : "none";
     }
@@ -492,7 +509,10 @@ function Sphere(host, items, opt = {}){
 }
 
 const bgItems = Array.from({length:132}, (_,i) => ({label: i % 4 === 0 ? "we are" : WORDS[(i*7) % WORDS.length]}));
-const bgS = Sphere($("#bgSphere"), bgItems, {cyMob:.42}); // on phones the sphere sits closer to the title
+const onHero = () => current === "work" && scrollY < innerHeight*.6 && !document.body.classList.contains("menu-open");
+const bgS = Sphere($("#bgSphere"), bgItems, {cyMob:.42,
+  steer: () => mouse.active && onHero(),
+  dragAnywhere: e => onHero() && !e.target.closest("a,button,input,.card,.note,nav,canvas")}); // on phones the sphere sits closer to the title
 
 const artItems = (() => {
   const fill = Array.from({length:96}, (_,i) => ({label: i % 5 === 0 ? "we are" : WORDS[(i*11) % WORDS.length]}));

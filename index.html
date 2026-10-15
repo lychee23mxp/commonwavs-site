@@ -481,7 +481,7 @@ $("#subF").addEventListener("submit", async e => {
   subGo.disabled = true; subMsg.textContent = "Sending…";
   try {
     await fetch(SUB_URL, {method:"POST", mode:"no-cors", body:new URLSearchParams({email, source:"website"})});
-    subMsg.className = "msg ok"; subMsg.textContent = "You're on the list. See you on the floor.";
+    subMsg.className = "msg ok"; subMsg.textContent = "You're on the list. See you on the dance floor.";
     subE.value = ""; setTimeout(closeSub, 2200);
   } catch(err){
     subMsg.textContent = "Couldn't connect. Try again in a moment.";

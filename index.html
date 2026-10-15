@@ -471,37 +471,20 @@ $("#subOpen").addEventListener("click", openSub);
 sub.addEventListener("click", e => { if(e.target === sub) closeSub(); });
 addEventListener("keydown", e => { if(e.key === "Escape") closeSub(); });
 
-let subDB = null, subUser = null;
-(async () => {
-  try {
-    if(!window.claude || !claude.use) return;
-    const [d, u] = await Promise.all([claude.use("db"), claude.use("user")]);
-    subDB = d; subUser = u;
-  } catch(e){}
-})();
-const validMail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+const SUB_URL = "https://script.google.com/macros/s/AKfycbwrjpwMBVEpIg9RJ8W6dtXUcSSF-L5C12UJfiu3Y-iZM68Zc-wSDOh-24qhZe1VCwgM/exec";
+const validMail = v => /^[^\s@=+\-][^\s@]*@[^\s@]+\.[^\s@]{2,}$/.test(v);
 $("#subF").addEventListener("submit", async e => {
   e.preventDefault();
   const email = subE.value.trim();
   subMsg.className = "msg";
   if(!validMail(email)){ subMsg.textContent = "That email doesn't look right."; subE.focus(); return; }
   subGo.disabled = true; subMsg.textContent = "Sending…";
-  let saved = false;
-  if(subDB && subUser){
-    try {
-      const id = await subUser.id();
-      await subDB.doc("subscribers/" + id).set({email: email.slice(0,200), at: new Date().toISOString()});
-      saved = true;
-    } catch(err){}
-  }
-  if(saved){
+  try {
+    await fetch(SUB_URL, {method:"POST", mode:"no-cors", body:new URLSearchParams({email, source:"website"})});
     subMsg.className = "msg ok"; subMsg.textContent = "You're on the list. See you on the floor.";
     subE.value = ""; setTimeout(closeSub, 2200);
-  } else {
-    /* no database for this visitor: hand the signup to their mail app */
-    const body = encodeURIComponent("Please add me to the common.wavs mailing list: " + email);
-    location.href = "mailto:common.wavs@gmail.com?subject=" + encodeURIComponent("Mailing list") + "&body=" + body;
-    subMsg.className = "msg ok"; subMsg.textContent = "Your mail app should open. Hit send and you're in.";
+  } catch(err){
+    subMsg.textContent = "Couldn't connect. Try again in a moment.";
   }
   subGo.disabled = false;
 });
